@@ -16,4 +16,5 @@ venv/bin/python analysis/attitude/attitude_analysis.py    # 日次データの�
 venv/bin/python analysis/attitude/attitude_transient.py   # 生HK（data/downlink/<sat>/hk/）の解析
 venv/bin/python analysis/aprs/aprs_analysis.py            # APRS・MSGミッションの集計
 venv/bin/python analysis/gyro/gyro_analysis.py            # BOTANジャイロのクォータニオン復元
+venv/bin/python analysis/gyro/gyro_animation.py          # 姿勢キューブのアニメーション（要ffmpeg）
 ```
