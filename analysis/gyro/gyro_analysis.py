@@ -1,4 +1,4 @@
-"""BOTANジャイロミッション（BNO055系IMU）のクォータニオン解析．
+"""BOTANジャイロミッション（IMUの姿勢センサフュージョン）のデータ解析．
 
 ダウンリンクフレーム（data/downlink/04_botan/gyro/gyro.csv）の32バイトレコードを復号する．
 レコード構成（ビッグエンディアン，運用チームの解析ツールのラベルに基づく）:
@@ -10,15 +10,19 @@
   [19:29]  SAP電流 -X/+Y/-Y/+Z/-Z（ADC生値）
   [29]     Reserve， [30:32] フッタ 0xf00f
 
-クォータニオンのスケールは Q14（1.0 = 16384）である．生値の4成分の二乗和は
-16384²に一致する（本スクリプトで検証）．運用時の解析ツールは32768で割っていたため
-ノルムが0.5となり，そこから計算したオイラー角には系統誤差がある．
-ここでは16384で割って正しいクォータニオンに復元する．
+クォータニオンのスケールは Q14（1.0 = 16384）である（生値ノルムで検証）．運用ツールは
+32768で割りノルム0.5の半分スケールを生成していたため，16384で割って正しく復元する．
+
+このIMUの姿勢フュージョンは加速度計で重力方向（下）を基準に絶対姿勢を求める設計だが，
+軌道上は自由落下のため加速度計に定常重力がかからない．したがって絶対姿勢（傾き）の基準は
+成立しない．一方，回転そのものはジャイロ（角速度センサ）が直接計測でき，自由落下でも有効で
+ある．本スクリプトは，(1)クォータニオン連続サンプルから回転速度を求め，(2)独立な物理量である
+SAP（太陽電池）電流の変調からスピン周期と軸を求めて突き合わせる．
 
 出力
   data/derived/04_botan/gyro_attitude.csv  復元したクォータニオン，角速度，SAP電流
   report/gyro/gyro_quaternion.png          セッション別のクォータニオンと回転速度
-  report/gyro/gyro_norm.png                スケール検証（生値ノルム）
+  report/gyro/gyro_spin.png                SAP電流のスピン変調（スピン軸・周期の独立検証）
 """
 from __future__ import annotations
 
@@ -28,6 +32,7 @@ from pathlib import Path
 import matplotlib
 import numpy as np
 import pandas as pd
+from scipy.signal import lombscargle
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
@@ -145,29 +150,32 @@ def main():
                     f"({g.wx.abs().median():.2f},{g.wy.abs().median():.2f},{g.wz.abs().median():.2f})")
         print(msg)
 
+    # SAP電流によるスピン周期（クォータニオンと独立な物理量）と，スピン軸の証拠
+    SIDE = ["sap_xm", "sap_yp", "sap_ym", "sap_zm"]
+    print("\nSAP電流によるスピン検証（+Z面が定常なら軸は+Z付近）:")
+    for s, g in df.groupby("session"):
+        g = g.sort_values("time_s")
+        t = g.time_s.to_numpy(float)
+        if len(t) < 30:
+            continue
+        zp_cv = g.sap_zp.std() / max(g.sap_zp.mean(), 1)
+        side_cv = np.mean([g[c].std() / max(g[c].mean(), 1) for c in SIDE])
+        y = g.sap_yp.to_numpy(float) - g.sap_yp.mean()
+        periods = np.linspace(6, 100, 3000)
+        p = lombscargle(t, y, 2 * np.pi / periods, normalize=True)
+        per = periods[p.argmax()]
+        wq = g.wmag.dropna()
+        wq_s = f"{wq.median():.1f}" if len(wq) else "-"
+        print(f"  {s}: +Z変動係数={zp_cv:.3f}  側面変動係数={side_cv:.2f}  "
+              f"SAP周期={per:.1f}s ({360 / per:.1f} deg/s)  クォータニオン|w|中央値={wq_s} deg/s")
+
     FIG.mkdir(parents=True, exist_ok=True)
     plt.rcParams.update({"font.size": 9, "axes.grid": True,
                         "grid.alpha": 0.3, "figure.dpi": 130})
 
-    # スケール検証: 正しい÷16384 と 運用ツールの÷32768 でノルムを比較
-    fig, ax = plt.subplots(figsize=(6.5, 2.9))
-    vv = v.reset_index(drop=True)
-    ax.plot(vv.qnorm_raw / Q14, ".", ms=3, color="#2ca02c",
-            label="÷16384 (Q14, correct)")
-    ax.plot(vv.qnorm_raw / 32768, ".", ms=3, color="#d62728",
-            label="÷32768 (operational tool)")
-    ax.axhline(1.0, color="k", lw=0.6)
-    ax.axhline(0.5, color="k", lw=0.6, ls=":")
-    ax.set_ylim(0, 1.2)
-    ax.set_xlabel("Valid quaternion sample")
-    ax.set_ylabel("Quaternion norm |q|")
-    ax.legend(fontsize=8, loc="center right")
-    fig.tight_layout()
-    fig.savefig(FIG / "gyro_norm.png")
-    plt.close(fig)
-
-    # セッション別のクォータニオンと回転速度（有効なセッションのみ）
     sessions = [s for s in df.session.unique() if df[df.session == s].q_valid.any()]
+
+    # クォータニオンと回転速度
     fig, axes = plt.subplots(2, len(sessions), figsize=(3.2 * len(sessions), 5.2),
                              sharey="row")
     if len(sessions) == 1:
@@ -181,11 +189,29 @@ def main():
         axes[0, j].set_ylim(-1.1, 1.1)
         axes[1, j].plot(g.time_s, g.wmag, ".", ms=3, color="#9467bd")
         axes[1, j].set_xlabel("Mission time [s]")
-    axes[0, 0].set_ylabel("Quaternion")
+    axes[0, 0].set_ylabel("Quaternion (fused)")
     axes[0, 0].legend(fontsize=7, ncol=4)
     axes[1, 0].set_ylabel("|ω| [deg/s]")
     fig.tight_layout()
     fig.savefig(FIG / "gyro_quaternion.png")
+    plt.close(fig)
+
+    # SAP電流のスピン変調: +Z（軸）は定常，側面は回転で変調
+    fig, axes = plt.subplots(1, len(sessions), figsize=(3.6 * len(sessions), 3.2),
+                             sharey=True)
+    if len(sessions) == 1:
+        axes = [axes]
+    for ax, s in zip(axes, sessions):
+        g = df[df.session == s].sort_values("time_s")
+        ax.plot(g.time_s, g.sap_zp, lw=1.2, color="#9467bd", label="+Z (spin axis)")
+        ax.plot(g.time_s, g.sap_yp, lw=0.8, color="#2ca02c", label="+Y (side)")
+        ax.plot(g.time_s, g.sap_xm, lw=0.8, color="#1f77b4", label="-X (side)")
+        ax.set_title(s, fontsize=8)
+        ax.set_xlabel("Mission time [s]")
+    axes[0].set_ylabel("SAP current [ADC counts]")
+    axes[0].legend(fontsize=7)
+    fig.tight_layout()
+    fig.savefig(FIG / "gyro_spin.png")
     plt.close(fig)
     print("wrote", OUT / "gyro_attitude.csv", "and figures in", FIG)
 

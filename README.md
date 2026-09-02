@@ -5,7 +5,7 @@ Public satellite-operations data for KASHIWA, SAKURA, YOMOGI, and BOTAN.
 - [Operations report](report/operations/report.md)
 - [Image capture metadata (撮影時刻・撮影条件)](report/operations/image_capture.md)
 - [Attitude analysis (沿磁力線制御の成立性)](report/attitude/attitude.md)
-- [Gyro mission quaternion (クォータニオン復元)](report/gyro/gyro.md)
+- [Gyro mission in free-fall (ジャイロは何を測っているか)](report/gyro/gyro.md)
 
 ## Layout
 
