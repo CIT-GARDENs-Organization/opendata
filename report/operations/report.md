@@ -125,7 +125,7 @@ BOTANの旧画像3点のうち1点はCORNと完全一致した．残る2点は�
 
 ## 構成
 
-- `data/downlink/<衛星>/`: 衛星からダウンリンクしたデータ．生HK（`hk/`）と画像（`images/`．YOMOGIはAKS・AFR，BOTANはCORN等）．
+- `data/downlink/<衛星>/`: 衛星からダウンリンクしたデータ．生HK（`hk/`），画像（`images/`．YOMOGIはAKS・AFR，BOTANはCORN等），APRS・MSGミッション（`aprs/`），KASHIWAのMoG（`mog/`），BOTANのジャイロ（`gyro/`）．
 - `data/recorded/<衛星>/`: 地上で記録したデータ．TLE取得履歴（`tle.csv`：地上局DB・運用ログ・n2yo）．
 - `data/derived/<衛星>/`: 日次HK，軌道高度，姿勢解析の表などの2次データ．号機間比較は `data/derived/00_compare/`．
 - `analysis/attitude/`: 姿勢解析のスクリプト．
