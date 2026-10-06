@@ -44,6 +44,6 @@ See [first_stage_analysis/README.md](first_stage_analysis/README.md).
 
 ### second_stage_analysis/（非公開）
 
-`attitude/`（沿磁力線制御の成立性，β角，α/ε），`gyro/`（クォータニオン復元），`aprs/`（MSGメッセージのデコード結果）．
+`first_stage_analysis/` と同じ構成．`<sat>/attitude/`（β角，日別の姿勢指標，食，スピン），`04_botan/gyro/`（クォータニオン復元），`04_botan/aprs/`（MSGメッセージのデコード結果），`all/attitude/` と `all/gyro/`（生成コード，比較図，報告）．
 
 Internal source documents, decoder tools, private paths, red-grid intermediate images, and unverified secondary analysis are excluded.
