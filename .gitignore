@@ -3,3 +3,6 @@ __pycache__/
 /venv/
 /scratchpad/
 *.mp4
+
+# 2次解析（モデル・推定・復号を伴い，正しさ未検証）はコード・表・図・報告とも非公開
+/second_stage_analysis/
