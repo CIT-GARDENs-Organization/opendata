@@ -1,5 +1,7 @@
 # opendata
 
+[![CC BY-NC-ND 4.0](https://licensebuttons.net/l/by-nc-nd/4.0/88x31.png)](https://creativecommons.org/licenses/by-nc-nd/4.0/)
+
 衛星 KASHIWA・SAKURA・YOMOGI・BOTAN の運用データと 1次解析．
 
 ## 報告
@@ -90,3 +92,5 @@ venv/bin/python first_stage_analysis/all/hk/hk_orbit.py
 ## ライセンス
 
 [CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/)．全文は [LICENSE](LICENSE)．
+
+利用時のクレジット表記: 「千葉工業大学」または「ChibaTech」．
